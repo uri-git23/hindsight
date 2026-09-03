@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 프로젝트 추가분
+data/
+*.csv
+*.parquet
+models/
+*.pkl
+*.joblib
+*.sqlite3
+*.db
+.vscode/
+.DS_Store
