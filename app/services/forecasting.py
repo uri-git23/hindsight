@@ -11,7 +11,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.errors import Conflict, InsufficientData, InvalidState, LookaheadViolation
+from app.errors import AppError, Conflict, InsufficientData, InvalidState, LookaheadViolation
 from app.models import Forecast, ForecastRun, TrainedModel
 from app.services.history import latest_ts, load_values
 from app.services.training import get_method
@@ -90,3 +90,20 @@ def point_status(point: Forecast, now: datetime) -> str:
     if point.scored_at is not None:
         return "scored"
     return "awaiting_actual" if point.target_ts > now else "missing_actual"
+
+
+LIVE_HORIZON = {"hourly": 24, "daily": 7}
+
+
+def make_live_forecasts(db: Session, now: datetime | None = None) -> int:
+    """done인 모든 모델로 '지금' 시점 예측을 만든다. 새 관측치가 없으면 origin이 같아 중복으로 건너뛴다(멱등)."""
+    now = now or utcnow()
+    created = 0
+    for model in db.scalars(select(TrainedModel).where(TrainedModel.status == "done")).all():
+        try:
+            create_forecast_run(db, model, origin=None, horizon=LIVE_HORIZON[model.series.frequency], now=now)
+            db.commit()
+            created += 1
+        except AppError:  # duplicate_forecast(새 데이터 없음) 등은 정상적인 '할 일 없음'
+            db.rollback()
+    return created

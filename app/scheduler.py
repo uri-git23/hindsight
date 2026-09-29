@@ -19,6 +19,8 @@ JOB_DEFAULTS = {"max_instances": 1, "coalesce": True, "misfire_grace_time": 60}
 
 def register_jobs(scheduler: BaseScheduler) -> None:
     scheduler.add_job(jobs.ingest_all, "interval", minutes=60, id="ingest_all")
+    # 수집 직후 새 origin으로 예측을 봉인해 둔다 → 한 시간 뒤 실제값이 오면 score_all이 채점
+    scheduler.add_job(jobs.forecast_live, "interval", minutes=15, id="forecast_live")
     scheduler.add_job(jobs.score_all, "interval", minutes=10, id="score_all")
     scheduler.add_job(jobs.train_queued, "interval", minutes=1, id="train_queued")
     scheduler.add_job(jobs.recover_stale, "interval", minutes=5, id="recover_stale")

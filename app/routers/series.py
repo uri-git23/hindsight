@@ -15,6 +15,7 @@ from app.schemas import (
     SeriesCreate, SeriesOut, SeriesSummary, SeriesUpdate,
 )
 from app.security import get_current_user
+from app.services.analytics import bucket_expr
 from app.services.history import upsert_observations
 from app.services.ingest import ingest_series
 from app.sources import Point, validate_source
@@ -131,14 +132,6 @@ BUCKET_SECONDS = {"hour": 3600, "day": 86400, "month": 86400 * 31}
 MAX_BUCKETS = 10_000
 
 
-def _bucket_expr(db: Session, bucket: str):
-    if db.get_bind().dialect.name == "sqlite":
-        fmt = {"hour": "%Y-%m-%dT%H:00", "day": "%Y-%m-%d", "month": "%Y-%m"}[bucket]
-        return func.strftime(fmt, Observation.ts)
-    fmt = {"hour": 'YYYY-MM-DD"T"HH24:00', "day": "YYYY-MM-DD", "month": "YYYY-MM"}[bucket]
-    return func.to_char(func.date_trunc(bucket, Observation.ts), fmt)
-
-
 @router.get("/{series_id}/observations/stats", response_model=list[BucketStat])
 def observation_stats(
     start: datetime,
@@ -154,7 +147,7 @@ def observation_stats(
     if (end - start).total_seconds() / BUCKET_SECONDS[bucket] > MAX_BUCKETS:
         raise InvalidInput(f"too many buckets; use a coarser bucket or a shorter range (max {MAX_BUCKETS})")
 
-    b = _bucket_expr(db, bucket).label("bucket")
+    b = bucket_expr(db, bucket, Observation.ts).label("bucket")
     rows = db.execute(
         select(b, func.count(), func.avg(Observation.value), func.min(Observation.value), func.max(Observation.value))
         .where(Observation.series_id == series.id, Observation.ts >= start, Observation.ts < end)

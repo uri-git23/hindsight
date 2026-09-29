@@ -9,7 +9,7 @@ from app import models  # noqa: F401  (Base.metadata에 테이블 등록)
 from app.config import settings
 from app.db import Base, engine
 from app.errors import AppError
-from app.routers import auth, forecasts, leaderboard, series
+from app.routers import analytics, auth, forecasts, leaderboard, series
 from app.routers import models as models_router
 
 
@@ -52,6 +52,7 @@ app.include_router(series.router)
 app.include_router(leaderboard.router)
 app.include_router(models_router.router)
 app.include_router(forecasts.router)
+app.include_router(analytics.router)
 
-# 테스트 콘솔 (정적 파일). API와 같은 주소에서 서빙하므로 CORS 설정이 필요 없다.
+# 결과 대시보드 (정적 파일). API와 같은 주소에서 서빙하므로 CORS 설정이 필요 없다.
 app.mount("/ui", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="ui")

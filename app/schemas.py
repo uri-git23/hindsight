@@ -228,3 +228,44 @@ class LeaderboardOut(BaseModel):
     awaiting_actual: int
     missing_actual: int
     rows: list[LeaderboardRow]
+
+
+# ---- analytics (대시보드)
+class ForecastPointRow(BaseModel):
+    model_id: int
+    target_ts: UtcDatetime
+    yhat: float
+    actual: float
+
+
+class ForecastPointsOut(BaseModel):
+    step: int
+    truncated: bool  # 행이 너무 많아 잘렸으면 true → 기간을 좁혀서 다시 요청
+    points: list[ForecastPointRow]
+
+
+class ErrorTrendRow(BaseModel):
+    bucket: str
+    model_id: int
+    n: int
+    mae: float
+
+
+class ErrorByStepRow(BaseModel):
+    model_id: int
+    step: int
+    n: int
+    mae: float
+
+
+class LatestForecastPoint(BaseModel):
+    step: int
+    target_ts: UtcDatetime
+    yhat: float
+
+
+class LatestForecastOut(BaseModel):
+    model_id: int
+    run_id: int
+    origin: UtcDatetime
+    points: list[LatestForecastPoint]

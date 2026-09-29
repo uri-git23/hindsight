@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.errors import AppError
 from app.models import Series
+from app.services.forecasting import make_live_forecasts
 from app.services.ingest import ingest_series
 from app.services.scoring import score_pending
 from app.services.training import fail_stale_training, train_queued_models
@@ -27,6 +28,13 @@ def ingest_all() -> None:
                          series.id, run.status, run.inserted, run.error)
             except AppError as e:  # 예: ingest_in_progress → 이번 회차는 건너뜀
                 log.warning("ingest series=%s skipped: %s", series.id, e.message)
+
+
+def forecast_live() -> None:
+    with SessionLocal() as db:
+        n = make_live_forecasts(db)
+    if n:
+        log.info("created %s live forecasts", n)
 
 
 def score_all() -> None:

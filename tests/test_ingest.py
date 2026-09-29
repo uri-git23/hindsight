@@ -102,7 +102,7 @@ def test_swap_source_keeps_data(client, auth):
     assert r.status_code == 422
 
 
-@pytest.mark.parametrize("job", ["ingest_all", "score_all", "train_queued", "recover_stale"])
+@pytest.mark.parametrize("job", ["ingest_all", "forecast_live", "score_all", "train_queued", "recover_stale"])
 def test_jobs_run_without_api(client, auth, job):
     from app import jobs
     _create(client, auth, source="synthetic", source_config={"backfill": 5})
