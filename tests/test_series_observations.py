@@ -77,3 +77,11 @@ def test_stats_bucket(client, auth):
                    params={"start": "2000-01-01T00:00:00Z", "end": "2026-01-01T00:00:00Z", "bucket": "hour"},
                    headers=auth)
     assert r.status_code == 422
+
+
+def test_summary(client, auth):
+    sid, ts = make_series(client, auth, [1.0, 2.0, 3.0])
+    r = client.get(f"/series/{sid}/summary", headers=auth).json()
+    assert r == {"count": 3, "first_ts": format_utc(ts[0]), "last_ts": format_utc(ts[-1])}
+    empty, _ = make_series(client, auth, [], name="empty")
+    assert client.get(f"/series/{empty}/summary", headers=auth).json()["count"] == 0

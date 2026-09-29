@@ -12,7 +12,7 @@ from app.errors import Conflict, InvalidInput, LookaheadViolation, SourceError
 from app.models import IngestRun, Observation, Series, User
 from app.schemas import (
     BucketStat, IngestRunOut, ObservationOut, ObservationPage, ObservationsIn, ObservationsWriteOut,
-    SeriesCreate, SeriesOut, SeriesUpdate,
+    SeriesCreate, SeriesOut, SeriesSummary, SeriesUpdate,
 )
 from app.security import get_current_user
 from app.services.history import upsert_observations
@@ -46,6 +46,15 @@ def list_series(user: User = Depends(get_current_user), db: Session = Depends(ge
 @router.get("/{series_id}", response_model=SeriesOut)
 def get_series(series: Series = Depends(get_owned_series)):
     return series
+
+
+@router.get("/{series_id}/summary", response_model=SeriesSummary)
+def series_summary(series: Series = Depends(get_owned_series), db: Session = Depends(get_db)):
+    count, first, last = db.execute(
+        select(func.count(), func.min(Observation.ts), func.max(Observation.ts))
+        .where(Observation.series_id == series.id)
+    ).one()
+    return SeriesSummary(count=count, first_ts=first, last_ts=last)
 
 
 @router.patch("/{series_id}", response_model=SeriesOut)

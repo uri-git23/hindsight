@@ -54,6 +54,12 @@ class SeriesUpdate(BaseModel):
     source_config: dict | None = None
 
 
+class SeriesSummary(BaseModel):
+    count: int
+    first_ts: UtcDatetime | None
+    last_ts: UtcDatetime | None
+
+
 class SeriesOut(ORM):
     id: int
     name: str
