@@ -227,4 +227,5 @@ models/
 *.sqlite3
 *.db
 .vscode/
-.DS_Store
+.DS_Store*.db-wal
+*.db-shm
