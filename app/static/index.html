@@ -3,215 +3,182 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>hindsight 콘솔</title>
+  <title>hindsight</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M6 21l6-7 5 4 9-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">hindsight <span class="muted">테스트 콘솔</span></div>
-    <div class="topbar-right">
-      <a href="/docs" target="_blank" rel="noopener">API 문서</a>
-      <span id="whoami" class="muted"></span>
-      <button id="logout-btn" class="ghost" hidden>로그아웃</button>
-    </div>
-  </header>
-
-  <!-- 로그인 -->
+  <!-- ======================= 로그인 ======================= -->
   <main id="auth-view" class="auth" hidden>
-    <form id="auth-form" class="card auth-card">
-      <h1>로그인</h1>
-      <p class="muted">처음이면 이메일·비밀번호를 넣고 <b>가입 후 로그인</b>을 누르세요.</p>
-      <label>이메일 <input name="email" type="email" required autocomplete="username" value="me@example.com"></label>
-      <label>비밀번호 (8자 이상) <input name="password" type="password" required minlength="8" autocomplete="current-password"></label>
-      <div class="row">
-        <button type="submit" data-mode="login">로그인</button>
-        <button type="submit" data-mode="signup" class="secondary">가입 후 로그인</button>
+    <section class="auth-pitch">
+      <div class="logo">hindsight</div>
+      <h1>예측은 봉인하고,<br>채점은 시간이 한다.</h1>
+      <p>시계열을 모으고 여러 방법으로 예측을 기록해 두면, 실제값이 도착하는 대로 자동으로 채점해
+        어느 방법이 정말 잘 맞았는지 공정하게 보여줍니다.</p>
+    </section>
+    <form id="auth-form" class="card auth-card" novalidate>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="login" aria-selected="true">로그인</button>
+        <button type="button" role="tab" data-tab="signup" aria-selected="false">회원가입</button>
       </div>
-      <p id="auth-msg" class="msg"></p>
+      <label>이메일 <input name="email" type="email" required autocomplete="username"></label>
+      <label>비밀번호 <input name="password" type="password" required minlength="8" autocomplete="current-password"
+        placeholder="8자 이상"></label>
+      <button type="submit" id="auth-submit" class="primary">로그인</button>
+      <p id="auth-msg" class="msg" role="alert"></p>
     </form>
   </main>
 
-  <!-- 본 화면 -->
-  <div id="app-view" class="layout" hidden>
-    <aside class="sidebar">
-      <section class="card">
-        <h2>빠른 시작</h2>
-        <p class="muted small">가짜 시계열 1000시간 + 모델 4개 + 백테스트까지 한 번에 만듭니다.</p>
-        <button id="demo-btn">데모 데이터 만들기</button>
-        <p id="demo-msg" class="msg small"></p>
-      </section>
-
-      <section class="card">
-        <h2>내 시리즈</h2>
-        <ul id="series-list" class="list"></ul>
-      </section>
-
-      <section class="card">
-        <h2>새 시리즈</h2>
-        <form id="series-form" class="stack">
-          <label>이름 <input name="name" required maxlength="100" placeholder="seoul-temp"></label>
-          <label>주기
-            <select name="frequency"><option value="hourly">hourly</option><option value="daily">daily</option></select>
-          </label>
-          <label>소스
-            <select name="source">
-              <option value="synthetic">synthetic (가짜, 오프라인)</option>
-              <option value="open_meteo">open_meteo (실제 기상)</option>
-              <option value="manual">manual (직접 입력)</option>
-            </select>
-          </label>
-          <div data-for="open_meteo" class="grid2" hidden>
-            <label>위도 <input name="latitude" type="number" step="any" value="37.57"></label>
-            <label>경도 <input name="longitude" type="number" step="any" value="126.98"></label>
+  <!-- ======================= 앱 ======================= -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="logo">hindsight</div>
+      <select id="series-select" aria-label="시리즈 선택"></select>
+      <div class="topbar-right">
+        <span id="updated-at" class="muted small"></span>
+        <button id="refresh-btn" class="ghost" title="새 데이터 수집 → 예측 → 채점">지금 업데이트</button>
+        <details class="menu">
+          <summary id="user-email"></summary>
+          <div class="menu-body">
+            <button id="add-series-menu" class="menu-item">시리즈 추가</button>
+            <button id="demo-menu" class="menu-item">샘플 시리즈 만들기</button>
+            <a class="menu-item" href="/docs" target="_blank" rel="noopener">API 문서</a>
+            <button id="logout-btn" class="menu-item">로그아웃</button>
           </div>
-          <div data-for="synthetic">
-            <label>처음 수집할 포인트 수 <input name="backfill" type="number" min="1" max="5000" value="500"></label>
-          </div>
-          <button type="submit">만들기</button>
-        </form>
+        </details>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- 빈 상태 -->
+      <section id="empty-view" class="empty-state" hidden>
+        <h1>첫 시리즈를 만들어 보세요</h1>
+        <p class="muted">샘플 데이터로 바로 결과를 보거나, 실제 도시의 기온을 모아 예측 대결을 시작할 수 있습니다.</p>
+        <div class="row center">
+          <button id="demo-btn" class="primary">샘플 데이터로 둘러보기</button>
+          <button id="add-series-btn" class="ghost">실제 날씨 시리즈 추가</button>
+        </div>
+        <p id="demo-msg" class="msg"></p>
       </section>
-    </aside>
 
-    <main class="content">
-      <p id="empty-hint" class="card muted">왼쪽에서 시리즈를 고르거나 새로 만드세요.</p>
+      <!-- 대시보드 -->
+      <div id="dash-view" hidden>
+        <div class="page-head">
+          <div>
+            <h1 id="s-title"></h1>
+            <div id="s-meta" class="muted small"></div>
+          </div>
+          <div class="row">
+            <button id="add-model-btn" class="primary">모델 추가</button>
+          </div>
+        </div>
 
-      <div id="series-view" hidden>
-        <!-- 시리즈 헤더 -->
+        <section class="kpis" id="kpis"></section>
+
         <section class="card">
-          <div class="series-head">
+          <div class="card-head">
             <div>
-              <h1 id="s-title"></h1>
-              <div id="s-meta" class="muted small"></div>
+              <h2>실제값과 예측 추이</h2>
+              <p class="muted small" id="main-caption"></p>
             </div>
             <div class="row wrap">
-              <button id="ingest-btn">수집 실행</button>
-              <button id="sample-btn" class="secondary" hidden>샘플 데이터 200개 넣기</button>
-              <button id="score-btn" class="secondary">채점 실행</button>
-              <button id="delete-series-btn" class="danger ghost">시리즈 삭제</button>
+              <div class="seg" id="range-seg" role="group" aria-label="기간">
+                <button data-days="3">3일</button>
+                <button data-days="7" aria-pressed="true">7일</button>
+                <button data-days="30">30일</button>
+                <button data-days="all">전체</button>
+              </div>
+              <label class="inline">예측 거리 <select id="step-select"></select></label>
             </div>
           </div>
-          <div id="s-stats" class="stats"></div>
-          <details class="small">
-            <summary>수집 기록</summary>
-            <table class="table" id="ingest-table"></table>
-          </details>
+          <div class="legend" id="legend"></div>
+          <div class="chart" id="main-chart"></div>
         </section>
 
-        <!-- 차트 -->
-        <section class="card">
-          <div class="card-head">
-            <h2 id="chart-title">관측치</h2>
-            <div class="row">
-              <label class="inline">범위
-                <select id="range-select">
-                  <option value="7">최근 7일</option>
-                  <option value="30" selected>최근 30일</option>
-                  <option value="all">전체</option>
-                </select>
-              </label>
-              <button id="clear-run-btn" class="ghost small" hidden>예측 겹쳐보기 해제</button>
-            </div>
-          </div>
-          <div id="chart-legend" class="legend"></div>
-          <div id="chart" class="chart"></div>
-        </section>
-
-        <!-- 모델 -->
-        <section class="card">
-          <div class="card-head"><h2>모델</h2></div>
-          <form id="model-form" class="model-form">
-            <label>이름 <input name="name" required maxlength="100" placeholder="예: sn-24"></label>
-            <label>방법 <select name="method" id="method-select"></select></label>
-            <label>파라미터 (JSON) <input name="params" id="params-input" value="{}"></label>
-            <label>train_cutoff (UTC)
-              <input name="train_cutoff" id="cutoff-input" placeholder="비우면 마지막 관측 시각">
-            </label>
-            <div class="row cutoff-helpers">
-              <button type="button" class="ghost small" data-cutoff="0.5">중간 지점</button>
-              <button type="button" class="ghost small" data-cutoff="0.7">70% 지점</button>
-              <button type="button" class="ghost small" data-cutoff="">비우기</button>
-            </div>
-            <button type="submit">학습 요청</button>
-            <p id="method-desc" class="muted small span-all"></p>
-          </form>
-          <div class="table-wrap"><table class="table" id="models-table"></table></div>
-
-          <div id="model-panel" class="panel" hidden>
-            <h3 id="mp-title"></h3>
-            <div class="grid-forms">
-              <form id="backtest-form" class="stack">
-                <h4>백테스트 <span class="muted small">과거 시점마다 예측을 만들고 즉시 채점</span></h4>
-                <label>시작 origin (UTC) <input name="start" required></label>
-                <label>끝 origin (UTC) <input name="end" required></label>
-                <div class="grid2">
-                  <label>몇 스텝마다 <input name="every" type="number" min="1" value="6"></label>
-                  <label>horizon <input name="horizon" type="number" min="1" max="500" value="24"></label>
-                </div>
-                <button type="submit">백테스트 실행</button>
-              </form>
-              <form id="forecast-form" class="stack">
-                <h4>단일 예측 <span class="muted small">origin을 비우면 '지금' 기준</span></h4>
-                <label>origin (UTC) <input name="origin" placeholder="비우면 지금"></label>
-                <label>horizon <input name="horizon" type="number" min="1" max="500" value="24"></label>
-                <button type="submit">예측 만들기</button>
-              </form>
-            </div>
-          </div>
-        </section>
-
-        <!-- 예측 기록 -->
-        <section class="card">
-          <div class="card-head">
-            <h2>예측 기록</h2>
-            <span id="runs-filter" class="muted small"></span>
-          </div>
-          <div class="table-wrap tall"><table class="table" id="runs-table"></table></div>
-          <div id="run-detail" hidden>
-            <h3 id="rd-title"></h3>
-            <div class="row wrap"><button id="withdraw-btn" class="ghost danger small">예측 철회</button></div>
-            <div class="table-wrap tall"><table class="table" id="points-table"></table></div>
-          </div>
-        </section>
-
-        <!-- 리더보드 -->
-        <section class="card">
-          <div class="card-head">
-            <h2>리더보드</h2>
-            <form id="lb-form" class="row wrap">
-              <label class="inline">step <input name="step" type="number" min="1" placeholder="전체" class="w-num"></label>
-              <label class="inline"><input name="common_only" type="checkbox" checked> 공통 시점만 비교</label>
-              <button type="submit" class="secondary small">새로고침</button>
-            </form>
-          </div>
-          <div id="lb-meta" class="muted small"></div>
-          <div class="table-wrap"><table class="table" id="lb-table"></table></div>
-        </section>
-      </div>
-
-      <!-- 규칙 테스트 -->
-      <section class="card">
-        <div class="card-head">
-          <h2>규칙 위반 테스트</h2>
-          <button id="rules-btn">전체 실행</button>
+        <div class="grid2">
+          <section class="card">
+            <h2>오차 추이</h2>
+            <p class="muted small" id="trend-caption"></p>
+            <div class="legend" id="trend-legend"></div>
+            <div class="chart small-chart" id="trend-chart"></div>
+          </section>
+          <section class="card">
+            <h2>예측 거리별 오차</h2>
+            <p class="muted small">멀리 볼수록 얼마나 틀리는가 (전체 기간 평균 절대오차)</p>
+            <div class="legend" id="step-legend"></div>
+            <div class="chart small-chart" id="step-chart"></div>
+          </section>
         </div>
-        <p class="muted small">
-          임시 시리즈를 만들어 서버 규칙이 제대로 막는지 확인하고, 끝나면 임시 시리즈를 지웁니다.
-          '다른 사용자' 테스트는 로컬 DB에 테스트 계정을 하나 만듭니다.
-        </p>
-        <div class="table-wrap"><table class="table" id="rules-table"></table></div>
-      </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>모델 순위</h2>
+              <p class="muted small" id="rank-caption"></p>
+            </div>
+            <label class="inline small"><input type="checkbox" id="common-only" checked> 공통 시점만 비교</label>
+          </div>
+          <div class="table-wrap"><table class="table" id="rank-table"></table></div>
+        </section>
+
+        <p class="footer-actions"><button id="delete-series-btn" class="link danger">이 시리즈 삭제</button></p>
+      </div>
     </main>
   </div>
 
-  <!-- API 로그 -->
-  <section id="log-drawer" class="log-drawer">
-    <div class="log-head">
-      <button id="log-toggle" class="ghost small">API 로그 ▾</button>
-      <label class="inline small"><input type="checkbox" id="log-errors-only"> 실패만</label>
-      <button id="log-clear" class="ghost small">지우기</button>
-    </div>
-    <ol id="log-list" class="log-list"></ol>
-  </section>
+  <!-- ======================= 모달 ======================= -->
+  <dialog id="series-dialog">
+    <form id="series-form" method="dialog" class="stack">
+      <h2>시리즈 추가</h2>
+      <label>이름 <input name="series_name" required maxlength="100" placeholder="예: 서울 기온"></label>
+      <label>데이터 소스
+        <select name="source">
+          <option value="open_meteo">실제 날씨 (Open-Meteo, 최근 92일)</option>
+          <option value="synthetic">샘플 데이터 (가짜 주기 패턴)</option>
+        </select>
+      </label>
+      <div data-for="open_meteo" class="stack">
+        <label>도시
+          <select name="city">
+            <option value="37.57,126.98">서울</option>
+            <option value="35.18,129.08">부산</option>
+            <option value="33.50,126.53">제주</option>
+            <option value="35.68,139.69">도쿄</option>
+            <option value="40.71,-74.01">뉴욕</option>
+            <option value="51.51,-0.13">런던</option>
+          </select>
+        </label>
+      </div>
+      <label>주기
+        <select name="frequency"><option value="hourly">1시간마다</option><option value="daily">하루마다</option></select>
+      </label>
+      <p class="msg" id="series-msg"></p>
+      <div class="row end">
+        <button type="button" class="ghost" data-close>취소</button>
+        <button type="submit" class="primary">만들고 데이터 가져오기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="model-dialog">
+    <form id="model-form" method="dialog" class="stack">
+      <h2>모델 추가</h2>
+      <label>예측 방법 <select name="model_method" id="method-select"></select></label>
+      <p class="muted small" id="method-desc"></p>
+      <label>이름 <input name="model_name" required maxlength="100"></label>
+      <fieldset>
+        <legend>학습에 쓸 기간</legend>
+        <label class="inline"><input type="radio" name="cutoff" value="0.5"> 앞쪽 50% (나머지로 과거 성적을 매김)</label>
+        <label class="inline"><input type="radio" name="cutoff" value="0.7" checked> 앞쪽 70%</label>
+        <label class="inline"><input type="radio" name="cutoff" value="1"> 지금까지 전부 (앞으로의 예측만 채점)</label>
+      </fieldset>
+      <p class="msg" id="model-msg"></p>
+      <div class="row end">
+        <button type="button" class="ghost" data-close>취소</button>
+        <button type="submit" class="primary">학습 시작</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="tooltip" class="tooltip" hidden></div>
