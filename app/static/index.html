@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>hindsight 콘솔</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">hindsight <span class="muted">테스트 콘솔</span></div>
+    <div class="topbar-right">
+      <a href="/docs" target="_blank" rel="noopener">API 문서</a>
+      <span id="whoami" class="muted"></span>
+      <button id="logout-btn" class="ghost" hidden>로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 로그인 -->
+  <main id="auth-view" class="auth" hidden>
+    <form id="auth-form" class="card auth-card">
+      <h1>로그인</h1>
+      <p class="muted">처음이면 이메일·비밀번호를 넣고 <b>가입 후 로그인</b>을 누르세요.</p>
+      <label>이메일 <input name="email" type="email" required autocomplete="username" value="me@example.com"></label>
+      <label>비밀번호 (8자 이상) <input name="password" type="password" required minlength="8" autocomplete="current-password"></label>
+      <div class="row">
+        <button type="submit" data-mode="login">로그인</button>
+        <button type="submit" data-mode="signup" class="secondary">가입 후 로그인</button>
+      </div>
+      <p id="auth-msg" class="msg"></p>
+    </form>
+  </main>
+
+  <!-- 본 화면 -->
+  <div id="app-view" class="layout" hidden>
+    <aside class="sidebar">
+      <section class="card">
+        <h2>빠른 시작</h2>
+        <p class="muted small">가짜 시계열 1000시간 + 모델 4개 + 백테스트까지 한 번에 만듭니다.</p>
+        <button id="demo-btn">데모 데이터 만들기</button>
+        <p id="demo-msg" class="msg small"></p>
+      </section>
+
+      <section class="card">
+        <h2>내 시리즈</h2>
+        <ul id="series-list" class="list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>새 시리즈</h2>
+        <form id="series-form" class="stack">
+          <label>이름 <input name="name" required maxlength="100" placeholder="seoul-temp"></label>
+          <label>주기
+            <select name="frequency"><option value="hourly">hourly</option><option value="daily">daily</option></select>
+          </label>
+          <label>소스
+            <select name="source">
+              <option value="synthetic">synthetic (가짜, 오프라인)</option>
+              <option value="open_meteo">open_meteo (실제 기상)</option>
+              <option value="manual">manual (직접 입력)</option>
+            </select>
+          </label>
+          <div data-for="open_meteo" class="grid2" hidden>
+            <label>위도 <input name="latitude" type="number" step="any" value="37.57"></label>
+            <label>경도 <input name="longitude" type="number" step="any" value="126.98"></label>
+          </div>
+          <div data-for="synthetic">
+            <label>처음 수집할 포인트 수 <input name="backfill" type="number" min="1" max="5000" value="500"></label>
+          </div>
+          <button type="submit">만들기</button>
+        </form>
+      </section>
+    </aside>
+
+    <main class="content">
+      <p id="empty-hint" class="card muted">왼쪽에서 시리즈를 고르거나 새로 만드세요.</p>
+
+      <div id="series-view" hidden>
+        <!-- 시리즈 헤더 -->
+        <section class="card">
+          <div class="series-head">
+            <div>
+              <h1 id="s-title"></h1>
+              <div id="s-meta" class="muted small"></div>
+            </div>
+            <div class="row wrap">
+              <button id="ingest-btn">수집 실행</button>
+              <button id="sample-btn" class="secondary" hidden>샘플 데이터 200개 넣기</button>
+              <button id="score-btn" class="secondary">채점 실행</button>
+              <button id="delete-series-btn" class="danger ghost">시리즈 삭제</button>
+            </div>
+          </div>
+          <div id="s-stats" class="stats"></div>
+          <details class="small">
+            <summary>수집 기록</summary>
+            <table class="table" id="ingest-table"></table>
+          </details>
+        </section>
+
+        <!-- 차트 -->
+        <section class="card">
+          <div class="card-head">
+            <h2 id="chart-title">관측치</h2>
+            <div class="row">
+              <label class="inline">범위
+                <select id="range-select">
+                  <option value="7">최근 7일</option>
+                  <option value="30" selected>최근 30일</option>
+                  <option value="all">전체</option>
+                </select>
+              </label>
+              <button id="clear-run-btn" class="ghost small" hidden>예측 겹쳐보기 해제</button>
+            </div>
+          </div>
+          <div id="chart-legend" class="legend"></div>
+          <div id="chart" class="chart"></div>
+        </section>
+
+        <!-- 모델 -->
+        <section class="card">
+          <div class="card-head"><h2>모델</h2></div>
+          <form id="model-form" class="model-form">
+            <label>이름 <input name="name" required maxlength="100" placeholder="예: sn-24"></label>
+            <label>방법 <select name="method" id="method-select"></select></label>
+            <label>파라미터 (JSON) <input name="params" id="params-input" value="{}"></label>
+            <label>train_cutoff (UTC)
+              <input name="train_cutoff" id="cutoff-input" placeholder="비우면 마지막 관측 시각">
+            </label>
+            <div class="row cutoff-helpers">
+              <button type="button" class="ghost small" data-cutoff="0.5">중간 지점</button>
+              <button type="button" class="ghost small" data-cutoff="0.7">70% 지점</button>
+              <button type="button" class="ghost small" data-cutoff="">비우기</button>
+            </div>
+            <button type="submit">학습 요청</button>
+            <p id="method-desc" class="muted small span-all"></p>
+          </form>
+          <div class="table-wrap"><table class="table" id="models-table"></table></div>
+
+          <div id="model-panel" class="panel" hidden>
+            <h3 id="mp-title"></h3>
+            <div class="grid-forms">
+              <form id="backtest-form" class="stack">
+                <h4>백테스트 <span class="muted small">과거 시점마다 예측을 만들고 즉시 채점</span></h4>
+                <label>시작 origin (UTC) <input name="start" required></label>
+                <label>끝 origin (UTC) <input name="end" required></label>
+                <div class="grid2">
+                  <label>몇 스텝마다 <input name="every" type="number" min="1" value="6"></label>
+                  <label>horizon <input name="horizon" type="number" min="1" max="500" value="24"></label>
+                </div>
+                <button type="submit">백테스트 실행</button>
+              </form>
+              <form id="forecast-form" class="stack">
+                <h4>단일 예측 <span class="muted small">origin을 비우면 '지금' 기준</span></h4>
+                <label>origin (UTC) <input name="origin" placeholder="비우면 지금"></label>
+                <label>horizon <input name="horizon" type="number" min="1" max="500" value="24"></label>
+                <button type="submit">예측 만들기</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- 예측 기록 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>예측 기록</h2>
+            <span id="runs-filter" class="muted small"></span>
+          </div>
+          <div class="table-wrap tall"><table class="table" id="runs-table"></table></div>
+          <div id="run-detail" hidden>
+            <h3 id="rd-title"></h3>
+            <div class="row wrap"><button id="withdraw-btn" class="ghost danger small">예측 철회</button></div>
+            <div class="table-wrap tall"><table class="table" id="points-table"></table></div>
+          </div>
+        </section>
+
+        <!-- 리더보드 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>리더보드</h2>
+            <form id="lb-form" class="row wrap">
+              <label class="inline">step <input name="step" type="number" min="1" placeholder="전체" class="w-num"></label>
+              <label class="inline"><input name="common_only" type="checkbox" checked> 공통 시점만 비교</label>
+              <button type="submit" class="secondary small">새로고침</button>
+            </form>
+          </div>
+          <div id="lb-meta" class="muted small"></div>
+          <div class="table-wrap"><table class="table" id="lb-table"></table></div>
+        </section>
+      </div>
+
+      <!-- 규칙 테스트 -->
+      <section class="card">
+        <div class="card-head">
+          <h2>규칙 위반 테스트</h2>
+          <button id="rules-btn">전체 실행</button>
+        </div>
+        <p class="muted small">
+          임시 시리즈를 만들어 서버 규칙이 제대로 막는지 확인하고, 끝나면 임시 시리즈를 지웁니다.
+          '다른 사용자' 테스트는 로컬 DB에 테스트 계정을 하나 만듭니다.
+        </p>
+        <div class="table-wrap"><table class="table" id="rules-table"></table></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- API 로그 -->
+  <section id="log-drawer" class="log-drawer">
+    <div class="log-head">
+      <button id="log-toggle" class="ghost small">API 로그 ▾</button>
+      <label class="inline small"><input type="checkbox" id="log-errors-only"> 실패만</label>
+      <button id="log-clear" class="ghost small">지우기</button>
+    </div>
+    <ol id="log-list" class="log-list"></ol>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="tooltip" class="tooltip" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

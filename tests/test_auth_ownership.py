@@ -41,3 +41,11 @@ def test_missing_series_is_404_with_code(client, auth):
     r = client.get("/series/999", headers=auth)
     assert r.status_code == 404
     assert r.json()["code"] == "series_not_found"
+
+
+def test_ui_is_served(client):
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code in (302, 307) and r.headers["location"] == "/ui/"
+    page = client.get("/ui/")
+    assert page.status_code == 200 and "hindsight" in page.text
+    assert client.get("/ui/app.js").status_code == 200

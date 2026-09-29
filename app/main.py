@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import models  # noqa: F401  (Base.metadata에 테이블 등록)
 from app.config import settings
@@ -35,6 +37,11 @@ async def app_error_handler(_request: Request, exc: AppError):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.message, "code": exc.code})
 
 
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/ui/")
+
+
 @app.get("/health", tags=["meta"])
 def health():
     return {"status": "ok"}
@@ -45,3 +52,6 @@ app.include_router(series.router)
 app.include_router(leaderboard.router)
 app.include_router(models_router.router)
 app.include_router(forecasts.router)
+
+# 테스트 콘솔 (정적 파일). API와 같은 주소에서 서빙하므로 CORS 설정이 필요 없다.
+app.mount("/ui", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="ui")
